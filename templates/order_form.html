@@ -26,7 +26,7 @@
                             {% if product %}
                                 <input class="seed" type="number" min="0" name="{{ name }}-{{ size }}" title="{{ name }} - {{ size }}-packs - ({{ product.type }})">
                             {% else %}
-                                <input type="text" id="quantity" name="{{ name }}-{{ size }}" readonly style="background-color: #c2c2c2">
+                                <input type="text" id="quantity" name="{{ name }}-{{ size }}" readonly tabindex=-1 style="background-color: #c2c2c2">
                             {% endif %}
                         </td>
                 {% endfor %}
