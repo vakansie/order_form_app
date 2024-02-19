@@ -58,10 +58,29 @@ class Database_Service:
                 'type': row[2],
                 'pack_size': row[3],
                 'wholesale_price': row[4],
-                'retail_price': row[5]
+                'retail_price': row[5],
+                'manufacturer': row[6]
             }
             self.connection.close()
             return jsonify(seed)
+
+    # Method to add a column to a table and fill it with a specified value
+    def add_column_to_table(self, table_name, column_name, value):
+        self.cursor.execute(f"PRAGMA table_info('{table_name}')")
+        columns = self.cursor.fetchall()
+        existing_columns = [col[1] for col in columns]
+        if column_name in existing_columns:
+            return {'already exists:': str(column_name)}
+        try:
+            self.cursor.execute(f'ALTER TABLE {table_name} ADD COLUMN {column_name}')
+            # Fill the column with the specified value for all rows
+            self.cursor.execute(f'UPDATE {table_name} SET {column_name}=?', (value,))
+            # Commit changes and close connection
+            self.connection.commit()
+            self.connection.close()
+            return {'success': f'Column {column_name} added to table {table_name} and filled with value {value}'}
+        except sqlite3.Error as e:
+            return {'error': str(e)}
 
 def write_order_to_csv(order: list[Seed_Product]):
     with open(order_file, 'w', newline='') as file:
@@ -86,7 +105,6 @@ def order_form():
         for product in order:
             print(product)
     seed_names, pack_sizes, available_products = database_service.fetch_seed_data()
-    
     return render_template('order_form.html', seed_names=seed_names, pack_sizes=pack_sizes, available_products=available_products)
 
 @app.route('/download', methods=['GET', 'POST'])
