@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dutch Passion Order Form</title>
+</head>
+<body>
+    <h1>Dutch Passion Order Form</h1>
+    <form method="post">
+        <table>
+            <tr>
+                <th></th>
+                {% for size in pack_sizes %}
+                    <th style="position: sticky; top: 0px; background-color:white;">{{ size }}-packs</th>
+                {% endfor %}
+            </tr>
+            {% for name in seed_names %}
+            <tr>
+                <td>{{ name }}</td>
+                {% for size in pack_sizes %}
+                    {% set key = [name, size]|join('') %}
+                    {% set product = available_products.get(key, False) %}
+                        <td>
+                            <label for="quantity of {{ name }}-{{ size }}-packs to order"></label>
+                            {% if product %}
+                                <input class="seed" type="number" min="0" name="{{ name }}-{{ size }}" title="{{ name }} - {{ size }}-packs - ({{ product.type }})">
+                            {% else %}
+                                <input type="text" id="quantity" name="{{ name }}-{{ size }}" readonly style="background-color: #c2c2c2">
+                            {% endif %}
+                        </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </table>
+        <input type="Reset" value="Clear" accesskey="c">
+        <input type="submit" value="Create File">
+        <form>
+            <input type="Submit" formaction="{{url_for('download')}}" accesskey="d" value="Download File">
+        </form>
+        </form>
+    <button onclick="ShowPreview()" accesskey="s">Preview</button>
+    <button onclick="getSeedByNameAndPackSize('CBG-Force', '10')" accesskey="t">test</button>
+    <div id="order_preview"></div>
+    <script>
+        function ShowPreview() {
+            var inputs = document.querySelectorAll('input[type="number"]');
+            var container = document.getElementById('order_preview');
+            container.innerHTML = '';
+            var table = document.createElement('table');
+            var tbody = document.createElement('tbody');
+            inputs.forEach(function(input) {
+                var value = parseInt(input.value);
+                if (!isNaN(value) && value > 0) {
+                    var title = input.getAttribute('title');
+                    var titleParts = title.split(' - ');
+                    var name = titleParts[0];
+                    var packSize = titleParts[1];
+                    var type = titleParts[2];
+                    
+                    var row = document.createElement('tr');
+                    
+                    var nameCell = document.createElement('td');
+                    nameCell.textContent = name;
+                    row.appendChild(nameCell);
+                    
+                    var typeCell = document.createElement('td');
+                    typeCell.textContent = type.slice(1, -1);
+                    row.appendChild(typeCell);
+                    
+                    var packSizeCell = document.createElement('td');
+                    packSizeCell.textContent = packSize;
+                    packSizeCell.style.textAlign = 'right';
+                    row.appendChild(packSizeCell);
+                    
+                    var valueCell = document.createElement('td');
+                    valueCell.textContent = value;
+                    valueCell.style.textAlign = 'right';
+                    row.appendChild(valueCell);
+                    
+                    tbody.appendChild(row);
+                }
+            });
+            table.appendChild(tbody);
+            container.appendChild(table);
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+    </script>
+    <script>
+        function getSeedByNameAndPackSize(name, packSize) {
+            fetch(`/get_seed?name=${name}&pack_size=${packSize}`)
+                .then(response => response.json())
+                .then(data => {
+                    var seed = {
+                        id: data.id,
+                        name: data.name,
+                        type: data.type,
+                        pack_size: data.pack_size,
+                        wholesale_price: data.wholesale_price,
+                        retail_price: data.retail_price
+                    };
+                    console.log(seed); // Do something with the JavaScript object
+                    var preview_container = document.getElementById('order_preview');
+                    var par = document.createElement('p');
+                    par.textContent = JSON.stringify(seed)
+                    preview_container.appendChild(par);
+                })
+                .catch(error => console.error('Error:', error));
+        }
+        getSeedByNameAndPackSize('CBG-Force', '10');
+    </script>
+</body>
+</html>
