@@ -61,10 +61,8 @@ class Database_Service:
                 'retail_price': row[5],
                 'manufacturer': row[6]
             }
-            self.connection.close()
             return jsonify(seed)
 
-    # Method to add a column to a table and fill it with a specified value
     def add_column_to_table(self, table_name, column_name, value):
         self.cursor.execute(f"PRAGMA table_info('{table_name}')")
         columns = self.cursor.fetchall()
@@ -119,6 +117,7 @@ def download():
 @app.route('/get_seed', methods=['GET'])
 def get_seed_route():
     database_service = Database_Service(seeds_db)
+    database_service.connection.close()
     return database_service.get_seed()
 
 def main():
