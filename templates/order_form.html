@@ -57,27 +57,21 @@
                     var name = titleParts[0];
                     var packSize = titleParts[1];
                     var type = titleParts[2];
-                    
                     var row = document.createElement('tr');
-                    
                     var nameCell = document.createElement('td');
                     nameCell.textContent = name;
                     row.appendChild(nameCell);
-                    
                     var typeCell = document.createElement('td');
                     typeCell.textContent = type.slice(1, -1);
                     row.appendChild(typeCell);
-                    
                     var packSizeCell = document.createElement('td');
                     packSizeCell.textContent = packSize;
                     packSizeCell.style.textAlign = 'right';
                     row.appendChild(packSizeCell);
-                    
                     var valueCell = document.createElement('td');
                     valueCell.textContent = value;
                     valueCell.style.textAlign = 'right';
                     row.appendChild(valueCell);
-                    
                     tbody.appendChild(row);
                 }
             });
@@ -100,7 +94,7 @@
                         retail_price: data.retail_price,
                         manufacturer: data.manufacturer
                     };
-                    console.log(seed); // Do something with the JavaScript object
+                    console.log(seed);
                     var preview_container = document.getElementById('order_preview');
                     var par = document.createElement('p');
                     par.textContent = JSON.stringify(seed)
