@@ -1,22 +1,32 @@
 import csv
 import sqlite3
 from flask import Flask, render_template, request, send_file, jsonify
+from dataclasses import dataclass
+import json
 
-seeds_db = 'seeds.db'
+seeds_db =  'products.db'
 order_file = 'Dutch_Passion_Order.csv'
 app = Flask(__name__)
-app.secret_key = 'asdasdasd'
 
+@dataclass
 class Seed_Product:
-    def __init__(self, name, pack_size, id, type='', amount=0) -> None:
-        self.name = name
-        self.pack_size = pack_size
-        self.id = id
-        self.type = type
-        self.amount = amount
+    id: str
+    name: str
+    type: str
+    pack_size: int
+    wholesale_price: float
+    retail_price: float
+    manufacturer: str
 
-    def __repr__(self) -> str:
-        return f'{self.name} - {self.id} - {self.amount} - {self.pack_size}-pack{'s' if int(self.amount) > 1 else ''}'
+class Order:
+    def __init__(self) -> None:
+        self.item_list: list[tuple[Seed_Product, int]] = []
+
+    def write_order_to_csv(self):
+        with open(order_file, 'w', newline='') as file:
+            writer = csv.writer(file)
+            for product, quantity in self.item_list:
+                writer.writerow([product.id, quantity, 'STK'])
 
 class Database_Service:
     def __init__(self, database) -> None:
@@ -25,43 +35,40 @@ class Database_Service:
         self.cursor = self.connection.cursor()
 
     def get_seeds_from_db(self) -> dict:
-        self.cursor.execute('SELECT name, pack_size, id, type FROM seeds')
+        self.cursor.execute('SELECT * FROM dutch_passion_seeds')
         rows = self.cursor.fetchall()
-        seeds = {f'{name}{pack_size}': Seed_Product(name, pack_size, id, type) for name, pack_size, id, type in rows}
+        seeds = {f'{seed_data[1]}{seed_data[3]}': Seed_Product(*seed_data) for seed_data in rows}
         return seeds
     
-    def get_code(self, name, pack_size):
-        self.cursor.execute('SELECT id FROM seeds WHERE name = ? AND pack_size = ?', (name, pack_size,))
-        response = self.cursor.fetchone()
-        if not response: return None
-        code = response[0]
-        return code
-    
+    # def get_code(self, name, pack_size):
+    #     self.cursor.execute('SELECT id FROM dutch_passion_seeds WHERE name = ? AND pack_size = ?', (name, pack_size,))
+    #     response = self.cursor.fetchone()
+    #     if not response: return None
+    #     code = response[0]
+    #     return code
+
+    def get_seed_by_id(self, seed_id:str):
+        if not seed_id.isdecimal(): return None
+        self.cursor.execute('SELECT * FROM dutch_passion_seeds WHERE id = ?', (seed_id,))
+        seed_data = self.cursor.fetchone()
+        if not seed_data: return None
+        seed = Seed_Product(*seed_data)
+        return seed
+
     def fetch_seed_data(self):
-        self.cursor.execute("SELECT DISTINCT name FROM seeds")
+        self.cursor.execute("SELECT DISTINCT name FROM dutch_passion_seeds")
         seed_names = [row[0] for row in self.cursor.fetchall()]
-        self.cursor.execute("SELECT DISTINCT pack_size FROM seeds ORDER BY pack_size")
+        self.cursor.execute("SELECT DISTINCT pack_size FROM dutch_passion_seeds ORDER BY pack_size")
         pack_sizes = [row[0] for row in self.cursor.fetchall()]
         available_products = self.get_seeds_from_db()
-        self.connection.close()
         return seed_names, pack_sizes, available_products
 
-    def get_seed(self):
-        name = request.args.get('name')
-        pack_size = request.args.get('pack_size')
-        self.cursor.execute('SELECT * FROM seeds WHERE name=? AND pack_size=?', (name, pack_size))
-        row = self.cursor.fetchone()
-        if row:
-            seed = {
-                'id': row[0],
-                'name': row[1],
-                'type': row[2],
-                'pack_size': row[3],
-                'wholesale_price': row[4],
-                'retail_price': row[5],
-                'manufacturer': row[6]
-            }
-            return jsonify(seed)
+    def get_seed_by_name_packsize(self, name, pack_size):
+        self.cursor.execute('SELECT * FROM dutch_passion_seeds WHERE name=? AND pack_size=?', (name, pack_size))
+        seed_data = self.cursor.fetchone()
+        if not seed_data: return None
+        seed = Seed_Product(*seed_data)
+        return seed
 
     def add_column_to_table(self, table_name, column_name, value):
         self.cursor.execute(f"PRAGMA table_info('{table_name}')")
@@ -71,41 +78,19 @@ class Database_Service:
             return {'already exists:': str(column_name)}
         try:
             self.cursor.execute(f'ALTER TABLE {table_name} ADD COLUMN {column_name}')
-            # Fill the column with the specified value for all rows
             self.cursor.execute(f'UPDATE {table_name} SET {column_name}=?', (value,))
-            # Commit changes and close connection
             self.connection.commit()
-            self.connection.close()
             return {'success': f'Column {column_name} added to table {table_name} and filled with value {value}'}
         except sqlite3.Error as e:
             return {'error': str(e)}
 
-def write_order_to_csv(order: list[Seed_Product]):
-    with open(order_file, 'w', newline='') as file:
-        writer = csv.writer(file)
-        for product in order:
-            writer.writerow([product.id, product.amount, 'STK'])
-
-@app.route('/', methods=['GET', 'POST'])
-def order_form():
+@app.route('/', methods=['GET'])
+def render_order_form():
     database_service = Database_Service(seeds_db)
-    if request.method == 'POST':
-        order = []
-        seeds_in_form = {seed: int(float(quantity)) for seed, quantity in request.form.to_dict().items() if quantity}
-        ordered_seeds = {seed: quantity for seed, quantity in seeds_in_form.items() if quantity}
-        for seed, quantity in ordered_seeds.items():
-            name, pack_size = seed.rsplit('-', 1)
-            code = database_service.get_code(name, pack_size)
-            if not code: continue
-            product = Seed_Product(name=name, pack_size=pack_size, id=code, amount=quantity)
-            order.append(product)
-        write_order_to_csv(order)
-        for product in order:
-            print(product)
     seed_names, pack_sizes, available_products = database_service.fetch_seed_data()
     return render_template('order_form.html', seed_names=seed_names, pack_sizes=pack_sizes, available_products=available_products)
 
-@app.route('/download', methods=['GET', 'POST'])
+@app.route('/download', methods=['GET'])
 def download():
     return send_file(
         path_or_file=order_file,
@@ -115,10 +100,32 @@ def download():
         max_age=0)
 
 @app.route('/get_seed', methods=['GET'])
-def get_seed_route():
+def get_seed_by_name_packsize_route()-> Seed_Product:
+    name = request.args.get('name')
+    pack_size = request.args.get('pack_size')
     database_service = Database_Service(seeds_db)
-    database_service.connection.close()
-    return database_service.get_seed()
+    seed = database_service.get_seed_by_name_packsize(name, pack_size)
+    return jsonify(seed)
+
+@app.route('/get_seed_by_id', methods=['GET'])
+def get_seed_by_id_route()-> Seed_Product:
+    id = request.args.get('seed_id')
+    database_service = Database_Service(seeds_db)
+    seed = database_service.get_seed_by_id(id)
+    return jsonify(seed)
+
+@app.route('/create_file', methods=['GET'])
+def order_form():
+    database_service = Database_Service(seeds_db)
+    ordered_products = json.loads(request.args.get('order_data'))
+    order = Order()
+    for id, quantity_ordered in ordered_products.items():
+        if not isinstance(quantity_ordered, int): continue
+        product = database_service.get_seed_by_id(id)
+        if not product: continue
+        order.item_list.append((product, quantity_ordered))
+    order.write_order_to_csv()
+    return jsonify({str(product): qty for (product, qty) in order.item_list})
 
 def main():
     app.run(debug=True)

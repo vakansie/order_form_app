@@ -24,9 +24,9 @@
                         <td>
                             <label for="quantity of {{ name }}-{{ size }}-packs to order"></label>
                             {% if product %}
-                                <input class="seed" type="number" min="0" name="{{ name }}-{{ size }}" title="{{ name }} - {{ size }}-packs - ({{ product.type }})">
+                                <input class="seed" id="{{ product.id }}" type="number" min="0" name="{{ name }}-{{ size }}" title="{{ name }} - {{ size }}-packs - ({{ product.type }})">
                             {% else %}
-                                <input type="text" id="quantity" name="{{ name }}-{{ size }}" readonly tabindex=-1 style="background-color: #c2c2c2">
+                                <input type="text" id="{{ key }}" name="{{ name }}-{{ size }}" readonly tabindex=-1 style="background-color: #c2c2c2">
                             {% endif %}
                         </td>
                 {% endfor %}
@@ -34,66 +34,111 @@
             {% endfor %}
         </table>
         <input type="Reset" value="Clear" accesskey="c">
-        <input type="submit" value="Create File">
-        <form>
-            <input type="Submit" formaction="{{url_for('download')}}" accesskey="d" value="Download File">
-        </form>
-        </form>
+    </form>
     <button onclick="ShowPreview()" accesskey="s">Preview</button>
-    <button onclick="getSeedByNameAndPackSize('CBG-Force', '10')" accesskey="t">test</button>
+    <button onclick="submitOrder()" accesskey="q">Create File</button>
+    <button onclick="getSeedByID('3801')" accesskey="t">test</button>
+    <form>
+    <input type="Submit" formaction="{{url_for('download')}}" accesskey="d" value="Download File">
+    </form>
     <div id="order_preview"></div>
     <script>
-        function ShowPreview() {
-            var inputs = document.querySelectorAll('input[type="number"]');
-            var container = document.getElementById('order_preview');
-            container.innerHTML = '';
-            var table = document.createElement('table');
-            var tbody = document.createElement('tbody');
-            inputs.forEach(function(input) {
-                var value = parseInt(input.value);
-                if (!isNaN(value) && value > 0) {
-                    var title = input.getAttribute('title');
-                    var titleParts = title.split(' - ');
-                    var name = titleParts[0];
-                    var packSize = titleParts[1];
-                    var type = titleParts[2];
+function ShowPreview() {
+    var inputs = document.getElementsByClassName('seed');
+    var container = document.getElementById('order_preview');
+    container.innerHTML = '';
+    var table = document.createElement('table');
+    var tbody = document.createElement('tbody');
+    var thead = document.createElement('thead');
+    var headerRow = document.createElement('tr');
+
+    // Iterate over the properties of the first seed object
+    if (inputs.length > 0) {
+        var seed_id = inputs[0].id;
+        getSeedByID(seed_id)
+            .then(function(seed) {
+                for (var prop in seed) {
+                    if (seed.hasOwnProperty(prop)) {
+                        var headerCell = document.createElement('th');
+                        headerCell.textContent = prop;
+                        headerRow.appendChild(headerCell);
+                    }
+                }
+                // Add additional header for the value column
+                var valueHeaderCell = document.createElement('th');
+                valueHeaderCell.textContent = 'Quantity';
+                headerRow.appendChild(valueHeaderCell);
+
+                // Append the header row to the table
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+            })
+            .catch(function(error) {
+                console.error('Error:', error);
+            });
+    }
+
+    // Iterate over each seed input element
+    Array.from(inputs).forEach(function(input) {
+        var value = parseInt(input.value);
+        if (!isNaN(value) && value > 0) {
+            var title = input.getAttribute('title');
+            // Call getSeedByID for each seed ID
+            var seed_id = input.id;
+            getSeedByID(seed_id)
+                .then(function(seed) {
+                    // Create table row with seed data
                     var row = document.createElement('tr');
-                    var nameCell = document.createElement('td');
-                    nameCell.textContent = name;
-                    row.appendChild(nameCell);
-                    var typeCell = document.createElement('td');
-                    typeCell.textContent = type.slice(1, -1);
-                    row.appendChild(typeCell);
-                    var packSizeCell = document.createElement('td');
-                    packSizeCell.textContent = packSize;
-                    packSizeCell.style.textAlign = 'right';
-                    row.appendChild(packSizeCell);
+
+                    // Add cells for each attribute of the Seed object
+                    for (var prop in seed) {
+                        if (seed.hasOwnProperty(prop)) {
+                            var cell = document.createElement('td');
+                            cell.textContent = seed[prop];
+                            row.appendChild(cell);
+                        }
+                    }
+                    
+                    // Add value cell under the corresponding column
                     var valueCell = document.createElement('td');
                     valueCell.textContent = value;
                     valueCell.style.textAlign = 'right';
                     row.appendChild(valueCell);
+
                     tbody.appendChild(row);
-                }
-            });
-            table.appendChild(tbody);
-            container.appendChild(table);
-            window.scrollTo(0, document.body.scrollHeight);
+                })
+                .catch(function(error) {
+                    console.error('Error:', error);
+                });
         }
+    });
+
+    // Append tbody to table
+    table.appendChild(tbody);
+
+    // Append table to container
+    container.appendChild(table);
+    window.scrollTo(0, document.body.scrollHeight);
+}
+    
     </script>
     <script>
+        class Seed {
+            constructor(data) {
+                this.id = data.id;
+                this.name = data.name;
+                this.type = data.type;
+                this.pack_size = data.pack_size;
+                this.wholesale_price = data.wholesale_price;
+                this.retail_price = data.retail_price;
+                this.manufacturer = data.manufacturer;
+            }
+}
         function getSeedByNameAndPackSize(name, packSize) {
             fetch(`/get_seed?name=${name}&pack_size=${packSize}`)
                 .then(response => response.json())
                 .then(data => {
-                    var seed = {
-                        id: data.id,
-                        name: data.name,
-                        type: data.type,
-                        pack_size: data.pack_size,
-                        wholesale_price: data.wholesale_price,
-                        retail_price: data.retail_price,
-                        manufacturer: data.manufacturer
-                    };
+                    var seed = new Seed(data);
                     console.log(seed);
                     var preview_container = document.getElementById('order_preview');
                     var par = document.createElement('p');
@@ -102,7 +147,50 @@
                 })
                 .catch(error => console.error('Error:', error));
         }
-        getSeedByNameAndPackSize('CBG-Force', '10');
+        function getSeedByID(seed_id) {
+            return fetch(`/get_seed_by_id?seed_id=${seed_id}`)
+                .then(response => response.json())
+                .then(data => {
+                    var seed = new Seed(data);
+                    console.log(seed);
+                    return seed;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    throw error; // Re-throw the error to propagate it to the caller
+                });
+        }
+    </script>
+    <script>
+        function submitOrder() {
+            var orderData = {};
+            var inputs = document.getElementsByClassName('seed');
+            for (var i = 0; i < inputs.length; i++) {
+                var productId = inputs[i].id;
+                var quantity = parseInt(inputs[i].value);
+                if (quantity >= 1) {
+                    orderData[productId] = quantity;
+                }
+            }
+            // Convert orderData to a JSON string
+            var orderDataString = encodeURIComponent(JSON.stringify(orderData));
+            // Send the dictionary to the Flask endpoint as a query parameter
+            fetch(`/create_file?order_data=${orderDataString}`)
+            .then(response => {
+                if (response.ok) {
+                    return response.text();
+                }
+                throw new Error('Network response was not ok.');
+            })
+            .then(data => {
+                console.log(data); // Log the response from the server
+                // Optionally, you can show a success message to the user
+            })
+            .catch(error => {
+                console.error('There was a problem with your fetch operation:', error);
+                // Optionally, you can show an error message to the user
+            });
+        }
     </script>
 </body>
 </html>
