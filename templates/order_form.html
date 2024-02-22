@@ -7,7 +7,21 @@
 </head>
 <body>
     <h1>Dutch Passion Order Form</h1>
-    <form method="post">
+    <form id="order_form" method="post">
+        <style>
+            .visually-hidden {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                margin: -1px;
+                padding: 0;
+                overflow: hidden;
+                clip: rect(0, 0, 0, 0);
+                border: 0;
+            }
+            .totals_row {outline: solid thin}
+        </style>
+        
         <table>
             <tr>
                 <th></th>
@@ -22,10 +36,11 @@
                     {% set key = [name, size]|join('') %}
                     {% set product = available_products.get(key, False) %}
                         <td>
-                            <label for="quantity of {{ name }}-{{ size }}-packs to order"></label>
                             {% if product %}
-                                <input class="seed" id="{{ product.id }}" type="number" min="0" name="{{ name }}-{{ size }}" title="{{ name }} - {{ size }}-packs - ({{ product.type }})">
+                                <label for="{{ product.id }}" class="visually-hidden">Quantity of {{ name }}-{{ size }}-packs to order</label>
+                                <input class="seed" id="{{ product.id }}" type="number" min="0" name="{{ name }}-{{ size }}" label='not available' title="{{ name }} - {{ size }}-packs - ({{ product.type }})">
                             {% else %}
+                                <label for="{{ key }}" class="visually-hidden">Quantity of {{ name }}-{{ size }}-packs to order</label>
                                 <input type="text" id="{{ key }}" name="{{ name }}-{{ size }}" readonly tabindex=-1 style="background-color: #c2c2c2">
                             {% endif %}
                         </td>
@@ -33,6 +48,7 @@
             </tr>
             {% endfor %}
         </table>
+        
         <input type="Reset" value="Clear" accesskey="c">
     </form>
     <button onclick="ShowPreview()" accesskey="s">Preview</button>
@@ -41,86 +57,102 @@
     <form>
     <input type="Submit" formaction="{{url_for('download')}}" accesskey="d" value="Download File">
     </form>
+    <script>
+        window.addEventListener('load', function() {
+            document.getElementById('order_form').reset();
+        });
+    </script>
     <div id="order_preview"></div>
     <script>
-function ShowPreview() {
-    var inputs = document.getElementsByClassName('seed');
-    var container = document.getElementById('order_preview');
-    container.innerHTML = '';
-    var table = document.createElement('table');
-    var tbody = document.createElement('tbody');
-    var thead = document.createElement('thead');
-    var headerRow = document.createElement('tr');
+        function ShowPreview() {
+            var inputs = document.getElementsByClassName('seed');
+            var container = document.getElementById('order_preview');
+            container.innerHTML = '';
+            var table = document.createElement('table');
+            var tbody = document.createElement('tbody');
+            var thead = document.createElement('thead');
+            var headerRow = document.createElement('tr');
+            var totalWholesaleValue = 0; // Total value for wholesale
+            var totalRetailValue = 0; // Total value for retail
+            var totalQuantity = 0;
+            var seedPromises = [];
 
-    // Iterate over the properties of the first seed object
-    if (inputs.length > 0) {
-        var seed_id = inputs[0].id;
-        getSeedByID(seed_id)
-            .then(function(seed) {
-                for (var prop in seed) {
-                    if (seed.hasOwnProperty(prop)) {
+            if (inputs.length > 0) {
+                getSeedByID(inputs[0].getAttribute('id')).then(firstSeed => {
+                    Object.keys(firstSeed).forEach(key => {
                         var headerCell = document.createElement('th');
-                        headerCell.textContent = prop;
+                        headerCell.textContent = key;
                         headerRow.appendChild(headerCell);
-                    }
-                }
-                // Add additional header for the value column
-                var valueHeaderCell = document.createElement('th');
-                valueHeaderCell.textContent = 'Quantity';
-                headerRow.appendChild(valueHeaderCell);
+                    });
+                    var quantityHeaderCell = document.createElement('th');
+                    quantityHeaderCell.textContent = 'Quantity';
+                    headerRow.appendChild(quantityHeaderCell);
+                    thead.appendChild(headerRow);
+                    table.appendChild(thead);
 
-                // Append the header row to the table
-                thead.appendChild(headerRow);
-                table.appendChild(thead);
-            })
-            .catch(function(error) {
-                console.error('Error:', error);
-            });
-    }
+                    Array.from(inputs).forEach(input => {
+                        var value = parseInt(input.value);
+                        if (!isNaN(value) && value > 0) {
+                            var seed_id = input.getAttribute('id');
+                            var seedPromise = getSeedByID(seed_id).then(seed => {
+                                var quantity = value;
+                                totalQuantity += quantity;
+                                if (seed.hasOwnProperty('wholesale_price')) {
+                                    totalWholesaleValue += parseFloat(seed.wholesale_price) * quantity;
+                                }
+                                if (seed.hasOwnProperty('retail_price')) {
+                                    totalRetailValue += parseFloat(seed.retail_price) * quantity;
+                                }
 
-    // Iterate over each seed input element
-    Array.from(inputs).forEach(function(input) {
-        var value = parseInt(input.value);
-        if (!isNaN(value) && value > 0) {
-            var title = input.getAttribute('title');
-            // Call getSeedByID for each seed ID
-            var seed_id = input.id;
-            getSeedByID(seed_id)
-                .then(function(seed) {
-                    // Create table row with seed data
-                    var row = document.createElement('tr');
-
-                    // Add cells for each attribute of the Seed object
-                    for (var prop in seed) {
-                        if (seed.hasOwnProperty(prop)) {
-                            var cell = document.createElement('td');
-                            cell.textContent = seed[prop];
-                            row.appendChild(cell);
+                                var row = document.createElement('tr');
+                                Object.keys(firstSeed).forEach(prop => {
+                                    var cell = document.createElement('td');
+                                    cell.textContent = seed[prop] ?? '';
+                                    row.appendChild(cell);
+                                });
+                                var quantityCell = document.createElement('td');
+                                quantityCell.textContent = value;
+                                quantityCell.style.textAlign = 'right';
+                                row.appendChild(quantityCell);
+                                tbody.appendChild(row);
+                            });
+                            seedPromises.push(seedPromise);
                         }
-                    }
-                    
-                    // Add value cell under the corresponding column
-                    var valueCell = document.createElement('td');
-                    valueCell.textContent = value;
-                    valueCell.style.textAlign = 'right';
-                    row.appendChild(valueCell);
+                    });
 
-                    tbody.appendChild(row);
-                })
-                .catch(function(error) {
-                    console.error('Error:', error);
+                    Promise.all(seedPromises).then(() => {
+                        var totalsRow = document.createElement('tr');
+                        totalsRow.class = 'totals_row'
+                        Object.keys(firstSeed).forEach(prop => {
+                            var cell = document.createElement('td');
+                            cell.style.fontWeight = 'bold';
+                            if (prop === 'wholesale_price') {
+                                cell.textContent = `€${totalWholesaleValue.toFixed(2)}`;
+                            } else if (prop === 'retail_price') {
+                                cell.textContent = `€${totalRetailValue.toFixed(2)}`;
+                            } else {
+                                cell.textContent = '';
+                            }
+                            totalsRow.appendChild(cell);
+                        });
+                        var quantityTotalCell = document.createElement('td');
+                        quantityTotalCell.textContent = totalQuantity;
+                        quantityTotalCell.style.fontWeight = 'bold';
+                        quantityTotalCell.style.textAlign = 'right';
+                        totalsRow.appendChild(quantityTotalCell);
+                        tbody.appendChild(totalsRow);
+                        table.appendChild(tbody);
+                        container.appendChild(table);
+                        window.scrollTo(0, document.body.scrollHeight);
+                    }).catch(error => {
+                        console.error('Error:', error);
+                    });
+
+                }).catch(error => {
+                    console.error('Error fetching the first seed:', error);
                 });
+            }
         }
-    });
-
-    // Append tbody to table
-    table.appendChild(tbody);
-
-    // Append table to container
-    container.appendChild(table);
-    window.scrollTo(0, document.body.scrollHeight);
-}
-    
     </script>
     <script>
         class Seed {
@@ -134,19 +166,6 @@ function ShowPreview() {
                 this.manufacturer = data.manufacturer;
             }
 }
-        function getSeedByNameAndPackSize(name, packSize) {
-            fetch(`/get_seed?name=${name}&pack_size=${packSize}`)
-                .then(response => response.json())
-                .then(data => {
-                    var seed = new Seed(data);
-                    console.log(seed);
-                    var preview_container = document.getElementById('order_preview');
-                    var par = document.createElement('p');
-                    par.textContent = JSON.stringify(seed)
-                    preview_container.appendChild(par);
-                })
-                .catch(error => console.error('Error:', error));
-        }
         function getSeedByID(seed_id) {
             return fetch(`/get_seed_by_id?seed_id=${seed_id}`)
                 .then(response => response.json())
@@ -173,7 +192,7 @@ function ShowPreview() {
                 }
             }
             // Convert orderData to a JSON string
-            var orderDataString = encodeURIComponent(JSON.stringify(orderData));
+            var orderDataString = JSON.stringify(orderData);
             // Send the dictionary to the Flask endpoint as a query parameter
             fetch(`/create_file?order_data=${orderDataString}`)
             .then(response => {

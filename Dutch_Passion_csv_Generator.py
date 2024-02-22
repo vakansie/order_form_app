@@ -1,6 +1,6 @@
 import csv
 import sqlite3
-from flask import Flask, render_template, request, send_file, jsonify
+from flask import Flask, render_template, request, send_file, jsonify, Response
 from dataclasses import dataclass
 import json
 
@@ -39,23 +39,16 @@ class Database_Service:
         rows = self.cursor.fetchall()
         seeds = {f'{seed_data[1]}{seed_data[3]}': Seed_Product(*seed_data) for seed_data in rows}
         return seeds
-    
-    # def get_code(self, name, pack_size):
-    #     self.cursor.execute('SELECT id FROM dutch_passion_seeds WHERE name = ? AND pack_size = ?', (name, pack_size,))
-    #     response = self.cursor.fetchone()
-    #     if not response: return None
-    #     code = response[0]
-    #     return code
 
-    def get_seed_by_id(self, seed_id:str):
+    def get_seed_by_id(self, seed_id:str) -> Seed_Product:
         if not seed_id.isdecimal(): return None
         self.cursor.execute('SELECT * FROM dutch_passion_seeds WHERE id = ?', (seed_id,))
         seed_data = self.cursor.fetchone()
-        if not seed_data: return None
+        if not seed_data: return {seed_id: ' not found'}
         seed = Seed_Product(*seed_data)
         return seed
 
-    def fetch_seed_data(self):
+    def fetch_seed_data(self)-> tuple[list[str], list[int], dict]:
         self.cursor.execute("SELECT DISTINCT name FROM dutch_passion_seeds")
         seed_names = [row[0] for row in self.cursor.fetchall()]
         self.cursor.execute("SELECT DISTINCT pack_size FROM dutch_passion_seeds ORDER BY pack_size")
@@ -63,14 +56,7 @@ class Database_Service:
         available_products = self.get_seeds_from_db()
         return seed_names, pack_sizes, available_products
 
-    def get_seed_by_name_packsize(self, name, pack_size):
-        self.cursor.execute('SELECT * FROM dutch_passion_seeds WHERE name=? AND pack_size=?', (name, pack_size))
-        seed_data = self.cursor.fetchone()
-        if not seed_data: return None
-        seed = Seed_Product(*seed_data)
-        return seed
-
-    def add_column_to_table(self, table_name, column_name, value):
+    def add_column_to_table(self, table_name, column_name, value)-> dict:
         self.cursor.execute(f"PRAGMA table_info('{table_name}')")
         columns = self.cursor.fetchall()
         existing_columns = [col[1] for col in columns]
@@ -85,13 +71,13 @@ class Database_Service:
             return {'error': str(e)}
 
 @app.route('/', methods=['GET'])
-def render_order_form():
+def render_order_form()-> str:
     database_service = Database_Service(seeds_db)
     seed_names, pack_sizes, available_products = database_service.fetch_seed_data()
     return render_template('order_form.html', seed_names=seed_names, pack_sizes=pack_sizes, available_products=available_products)
 
 @app.route('/download', methods=['GET'])
-def download():
+def download()-> Response:
     return send_file(
         path_or_file=order_file,
         mimetype='text/csv',
@@ -99,23 +85,15 @@ def download():
         as_attachment=True,
         max_age=0)
 
-@app.route('/get_seed', methods=['GET'])
-def get_seed_by_name_packsize_route()-> Seed_Product:
-    name = request.args.get('name')
-    pack_size = request.args.get('pack_size')
-    database_service = Database_Service(seeds_db)
-    seed = database_service.get_seed_by_name_packsize(name, pack_size)
-    return jsonify(seed)
-
 @app.route('/get_seed_by_id', methods=['GET'])
-def get_seed_by_id_route()-> Seed_Product:
+def get_seed_by_id_route()-> Response:
     id = request.args.get('seed_id')
     database_service = Database_Service(seeds_db)
     seed = database_service.get_seed_by_id(id)
     return jsonify(seed)
 
 @app.route('/create_file', methods=['GET'])
-def order_form():
+def order_form()-> Response:
     database_service = Database_Service(seeds_db)
     ordered_products = json.loads(request.args.get('order_data'))
     order = Order()
