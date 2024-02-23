@@ -27,7 +27,7 @@ For testing purposes one can copy the `products.db.sample` to `products.db`
 
 ## Running
 
-```console
+```
 # Active the virtual env if you haven't done already
 source .venv/bin/activate
 
