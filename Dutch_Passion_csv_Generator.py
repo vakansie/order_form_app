@@ -8,7 +8,7 @@ seeds_db =  'products.db'
 order_file = 'Dutch_Passion_Order.csv'
 app = Flask(__name__)
 
-@dataclass
+@dataclass (frozen=True)
 class Seed_Product:
     id: str
     name: str
