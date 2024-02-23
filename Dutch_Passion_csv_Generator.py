@@ -22,7 +22,7 @@ class Order:
     def __init__(self) -> None:
         self.item_list: list[tuple[Seed_Product, int]] = []
 
-    def write_order_to_csv(self):
+    def write_to_file(self):
         with open(order_file, 'w', newline='') as file:
             writer = csv.writer(file)
             for product, quantity in self.item_list:
@@ -40,7 +40,7 @@ class Database_Service:
         seeds = {f'{seed_data[1]}{seed_data[3]}': Seed_Product(*seed_data) for seed_data in rows}
         return seeds
 
-    def get_seed_by_id(self, seed_id:str) -> Seed_Product:
+    def get_seed_by_id(self, seed_id:str):
         if not seed_id.isdecimal(): return None
         self.cursor.execute('SELECT * FROM dutch_passion_seeds WHERE id = ?', (seed_id,))
         seed_data = self.cursor.fetchone()
@@ -48,7 +48,7 @@ class Database_Service:
         seed = Seed_Product(*seed_data)
         return seed
 
-    def fetch_seed_data(self)-> tuple[list[str], list[int], dict]:
+    def fetch_seed_data(self):
         self.cursor.execute("SELECT DISTINCT name FROM dutch_passion_seeds")
         seed_names = [row[0] for row in self.cursor.fetchall()]
         self.cursor.execute("SELECT DISTINCT pack_size FROM dutch_passion_seeds ORDER BY pack_size")
@@ -56,7 +56,7 @@ class Database_Service:
         available_products = self.get_seeds_from_db()
         return seed_names, pack_sizes, available_products
 
-    def add_column_to_table(self, table_name, column_name, value)-> dict:
+    def add_column_to_table(self, table_name, column_name, value):
         self.cursor.execute(f"PRAGMA table_info('{table_name}')")
         columns = self.cursor.fetchall()
         existing_columns = [col[1] for col in columns]
@@ -71,13 +71,13 @@ class Database_Service:
             return {'error': str(e)}
 
 @app.route('/', methods=['GET'])
-def render_order_form()-> str:
+def render_order_form():
     database_service = Database_Service(seeds_db)
     seed_names, pack_sizes, available_products = database_service.fetch_seed_data()
     return render_template('order_form.html', seed_names=seed_names, pack_sizes=pack_sizes, available_products=available_products)
 
 @app.route('/download', methods=['GET'])
-def download()-> Response:
+def download():
     return send_file(
         path_or_file=order_file,
         mimetype='text/csv',
@@ -93,7 +93,7 @@ def get_seed_by_id_route()-> Response:
     return jsonify(seed)
 
 @app.route('/create_file', methods=['GET'])
-def order_form()-> Response:
+def order_form():
     database_service = Database_Service(seeds_db)
     ordered_products = json.loads(request.args.get('order_data'))
     order = Order()
@@ -102,7 +102,7 @@ def order_form()-> Response:
         product = database_service.get_seed_by_id(id)
         if not product: continue
         order.item_list.append((product, quantity_ordered))
-    order.write_order_to_csv()
+    order.write_to_file()
     return jsonify({str(product): qty for (product, qty) in order.item_list})
 
 def main():

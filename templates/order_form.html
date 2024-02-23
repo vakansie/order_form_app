@@ -64,6 +64,20 @@
     </script>
     <div id="order_preview"></div>
     <script>
+        function capitalizeAndReplaceWithPadding(rawStr) {
+            // Replace underscores with spaces
+            let replacedStr = rawStr.replace(/_/g, ' ');
+            
+            // Capitalize the first letter of each word
+            let capitalizedStr = replacedStr.replace(/\b\w/g, function(char) {
+                return char.toUpperCase();
+            });
+
+            // Add padding with a space on both ends
+            let paddedStr = ` ${capitalizedStr} `;
+            
+            return paddedStr;
+        }
         function ShowPreview() {
             var inputs = document.getElementsByClassName('seed');
             var container = document.getElementById('order_preview');
@@ -81,7 +95,7 @@
                 getSeedByID(inputs[0].getAttribute('id')).then(firstSeed => {
                     Object.keys(firstSeed).forEach(key => {
                         var headerCell = document.createElement('th');
-                        headerCell.textContent = key;
+                        headerCell.textContent = capitalizeAndReplaceWithPadding(key);
                         headerRow.appendChild(headerCell);
                     });
                     var quantityHeaderCell = document.createElement('th');
@@ -141,6 +155,7 @@
                         quantityTotalCell.style.textAlign = 'right';
                         totalsRow.appendChild(quantityTotalCell);
                         tbody.appendChild(totalsRow);
+
                         table.appendChild(tbody);
                         container.appendChild(table);
                         window.scrollTo(0, document.body.scrollHeight);
