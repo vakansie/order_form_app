@@ -4,8 +4,8 @@ from flask import Flask, render_template, request, send_file, jsonify, Response
 from dataclasses import dataclass
 import json
 
-seeds_db =  'products.db'
-order_file = 'Dutch_Passion_Order.csv'
+seeds_db =  r'products.db'
+order_file = r'Dutch_Passion_Order.csv'
 app = Flask(__name__)
 
 @dataclass (frozen=True)

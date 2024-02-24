@@ -7,6 +7,7 @@
 </head>
 <body>
     <h1>Dutch Passion Order Form</h1>
+    <input type="text" id="searchBar" placeholder="Search by name or ID...">
     <form id="order_form" method="post">
         <style>
             .visually-hidden {
@@ -57,12 +58,12 @@
     <form>
     <input type="Submit" formaction="{{url_for('download')}}" accesskey="d" value="Download File">
     </form>
+    <div id="order_preview"></div>
     <script>
         window.addEventListener('load', function() {
             document.getElementById('order_form').reset();
         });
     </script>
-    <div id="order_preview"></div>
     <script>
         function capitalizeAndReplaceWithPadding(rawStr) {
             // Replace underscores with spaces
@@ -136,7 +137,7 @@
 
                     Promise.all(seedPromises).then(() => {
                         var totalsRow = document.createElement('tr');
-                        totalsRow.class = 'totals_row'
+                        totalsRow.class = 'totals_row'  
                         Object.keys(firstSeed).forEach(prop => {
                             var cell = document.createElement('td');
                             cell.style.fontWeight = 'bold';
@@ -155,6 +156,63 @@
                         quantityTotalCell.style.textAlign = 'right';
                         totalsRow.appendChild(quantityTotalCell);
                         tbody.appendChild(totalsRow);
+
+                        // Calculate and add discount row
+                        var discountPercentage = 0;
+                        if (totalWholesaleValue >= 20000) discountPercentage = 30;
+                        else if (totalWholesaleValue >= 10000) discountPercentage = 25;
+                        else if (totalWholesaleValue >= 2000) discountPercentage = 20;
+                        else if (totalWholesaleValue >= 1000) discountPercentage = 15;
+                        else if (totalWholesaleValue >= 500) discountPercentage = 10;
+                        
+                        var discountAmount = totalWholesaleValue * (discountPercentage / 100);
+                        var finalTotal = totalWholesaleValue - discountAmount;
+                        // Calculate the amount needed for the next discount level
+                        var nextDiscountLevel = null;
+                        var amountNeededForNextDiscount = 0;
+
+                        if (totalWholesaleValue < 500) {
+                            nextDiscountLevel = 10; // Next discount level is 10%
+                            amountNeededForNextDiscount = 500 - totalWholesaleValue;
+                        } else if (totalWholesaleValue < 1000) {
+                            nextDiscountLevel = 15; // Next discount level is 15%
+                            amountNeededForNextDiscount = 1000 - totalWholesaleValue;
+                        } else if (totalWholesaleValue < 2000) {
+                            nextDiscountLevel = 20; // Next discount level is 20%
+                            amountNeededForNextDiscount = 2000 - totalWholesaleValue;
+                        } else if (totalWholesaleValue < 10000) {
+                            nextDiscountLevel = 25; // Next discount level is 25%
+                            amountNeededForNextDiscount = 10000 - totalWholesaleValue;
+                        } else if (totalWholesaleValue < 20000) {
+                            nextDiscountLevel = 30; // Next discount level is 30%
+                            amountNeededForNextDiscount = 20000 - totalWholesaleValue;
+                        }
+
+                        // Only add the next discount level row if there is a next level
+                        if (nextDiscountLevel !== null) {
+                            var nextDiscountRow = document.createElement('tr');
+                            var nextDiscountCell = document.createElement('td');
+                            nextDiscountCell.colSpan = "5"; // Adjust based on your table structure
+                            nextDiscountCell.textContent = 'Spend an additional €' + amountNeededForNextDiscount.toFixed(2) +
+                                                            ' for the next discount of ' + nextDiscountLevel + '%';
+                            nextDiscountRow.appendChild(nextDiscountCell);
+                            tbody.appendChild(nextDiscountRow);
+                        }
+                        // Add Discount Row
+                        var discountRow = document.createElement('tr');
+                        var discountCell = document.createElement('td');
+                        discountCell.colSpan = "5"; // Adjust based on your table structure
+                        discountCell.textContent = 'Discount (' + discountPercentage + '%): €' + discountAmount.toFixed(2);
+                        discountRow.appendChild(discountCell);
+                        tbody.appendChild(discountRow);
+
+                        // Add Final Total Row
+                        var finalTotalRow = document.createElement('tr');
+                        var finalTotalCell = document.createElement('td');
+                        finalTotalCell.colSpan = "5"; // Adjust based on your table structure
+                        finalTotalCell.textContent = 'Final Total: €' + finalTotal.toFixed(2);
+                        finalTotalRow.appendChild(finalTotalCell);
+                        tbody.appendChild(finalTotalRow);
 
                         table.appendChild(tbody);
                         container.appendChild(table);
@@ -225,6 +283,34 @@
                 // Optionally, you can show an error message to the user
             });
         }
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchBar = document.getElementById('searchBar');
+            searchBar.addEventListener('keyup', function(e) {
+                const term = e.target.value.toLowerCase();
+                const rows = document.querySelectorAll('#order_form tr');
+                rows.forEach(row => {
+                    const name = row.querySelector('td:first-child').textContent.toLowerCase();
+                    const isVisible = name.includes(term) || row.id.includes(term);
+                    row.style.display = isVisible ? '' : 'none';
+                });
+            });
+
+            // Synchronize input fields
+            const inputs = document.querySelectorAll('.seed');
+            inputs.forEach(input => {
+                input.addEventListener('input', function() {
+                    // Duplicate and synchronize input values based on some unique attribute, e.g., 'name'
+                    const copies = document.querySelectorAll(`[name="${this.name}"]`);
+                    copies.forEach(copy => {
+                        if (copy !== this) {
+                            copy.value = this.value;
+                        }
+                    });
+                });
+            });
+        });
     </script>
 </body>
 </html>
