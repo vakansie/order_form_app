@@ -23,6 +23,7 @@
     .searchResults{
         /* border: 10px solid black; */
         border-spacing: 2px;
+        position: relative;
     }
     td, th {
     white-space: nowrap;
@@ -39,13 +40,14 @@
     <div class="sticky_top">
     <input type="text" id="searchBar" placeholder="Search by name or ID...">
     <table id="searchResults"></table>
+    </br>
     </div>
     <form id="order_form" method="post">
-        <table>
+        <table id="productEntries">
             <tr>
                 <th></th>
                 {% for size in pack_sizes %}
-                    <th style="position: sticky; top: 0px; background-color:white;">{{ size }}-packs</th>
+                    <th class="sticky_top">{{ size }}-packs</th>
                 {% endfor %}
             </tr>
             {% for name in seed_names %}
@@ -150,6 +152,18 @@
                                 Object.keys(firstSeed).forEach(prop => {
                                     var cell = document.createElement('td');
                                     cell.textContent = seed[prop] ?? '';
+                                    if (prop === 'wholesale_price') {
+                                        cell.textContent = `€${parseFloat(cell.textContent).toFixed(2)}`;
+                                        cell.style.textAlign = "right";
+                                    } else if (prop === 'retail_price') {
+                                        cell.textContent = `€${parseFloat(cell.textContent).toFixed(2)}`;
+                                        cell.style.textAlign = "right";
+                                    } else if (prop === 'pack_size') {
+                                        cell.style.textAlign = "right";
+                                    } else if (prop === 'manufacturer') {
+                                        cell.style.textAlign = "right";
+                                    }
+
                                     row.appendChild(cell);
                                 });
                                 var quantityCell = document.createElement('td');
@@ -170,8 +184,10 @@
                             cell.style.fontWeight = 'bold';
                             if (prop === 'wholesale_price') {
                                 cell.textContent = `€${totalWholesaleValue.toFixed(2)}`;
+                                cell.style.textAlign = "right";
                             } else if (prop === 'retail_price') {
                                 cell.textContent = `€${totalRetailValue.toFixed(2)}`;
+                                cell.style.textAlign = "right";
                             } else {
                                 cell.textContent = '';
                             }
@@ -219,7 +235,7 @@
                         // Add Discount Row
                         var discountRow = document.createElement('tr');
                         var discountCell = document.createElement('td');
-                        discountCell.colSpan = "5"; // Adjust based on your table structure
+                        discountCell.colSpan = "8"; // Adjust based on your table structure
                         discountCell.textContent = 'Discount (' + discountPercentage + '%): €' + discountAmount.toFixed(2);
                         discountRow.appendChild(discountCell);
                         tbody.appendChild(discountRow);
@@ -227,7 +243,7 @@
                         // Add Final Total Row
                         var finalTotalRow = document.createElement('tr');
                         var finalTotalCell = document.createElement('td');
-                        finalTotalCell.colSpan = "5"; // Adjust based on your table structure
+                        finalTotalCell.colSpan = "8"; // Adjust based on your table structure
                         finalTotalCell.textContent = 'Final Total: €' + finalTotal.toFixed(2);
                         finalTotalRow.appendChild(finalTotalCell);
                         tbody.appendChild(finalTotalRow);
@@ -238,7 +254,7 @@
                         if (nextDiscountLevel !== null) {
                             var nextDiscountRow = document.createElement('tr');
                             var nextDiscountCell = document.createElement('td');
-                            nextDiscountCell.colSpan = "5"; // Adjust based on your table structure
+                            nextDiscountCell.colSpan = "8"; // Adjust based on your table structure
                             nextDiscountCell.textContent = 'Spend an additional €' + amountNeededForNextDiscount.toFixed(2) +
                                                             ' for the next discount of ' + nextDiscountLevel + '% for an additional  €'
                                                             + extraDiscount.toFixed(2) + ' discount ' + 'and a total of €' + potentialDiscount.toFixed(2) + ' discount.';
@@ -315,78 +331,101 @@
             });
         }
     </script>
-    <script>
-        const searchBar                     = document.getElementById('searchBar');
-        const searchResults                 = document.getElementById('searchResults');
-        searchBar.addEventListener('input', async () => {
-            const query                     = searchBar.value.trim();
-            const response                  = await fetch(`/search_attr?query=${query}`);
-            const data                      = await response.json();
+<script>
+    const searchBar = document.getElementById('searchBar');
+    const searchResults = document.getElementById('searchResults');
 
-            // Clear previous results
-            searchResults.innerHTML = '';
-            // Initialize a variable to store the length of the longest text
-            let maxLength = 0;
-            // Select all <td> elements with the class "names"
-                const nameCells = document.querySelectorAll('td.names');
-                // Iterate over each <td> element
-                    nameCells.forEach(cell => {
-                        // Get the text content of the cell
-                        const text = cell.textContent
-                        // Update maxLength if the current text length is greater
-                        if (text.length > maxLength) {
-                            maxLength = text.length;
-                        }
-                    });
-                    const row = document.createElement('tr')
-                    const header = document.createElement('th')
-                    row.appendChild(header)
-                    searchResults.appendChild(row);
-                    // Display new results
-                    data.forEach(product => {
-                        // Create a table row (tr)
-                        const row = document.createElement('tr');
-                        // Create a table cell (td) for product name
-                        const nameCell = document.createElement('td');
-                        
-                        nameCell.textContent = product.name.padEnd(maxLength, '\xa0');
-                        row.appendChild(nameCell);
+    searchBar.addEventListener('input', async () => {
+        const query = searchBar.value.trim();
+        const response = await fetch(`/search_attr?query=${query}`);
+        const data = await response.json();
 
-            // // Create a table cell (td) for product type
-            // const typeCell = document.createElement('td');
-            // typeCell.textContent = product.type;
-            // row.appendChild(typeCell);
+        // Clear previous results
+        searchResults.innerHTML = '';
+
+        // Initialize a variable to store the length of the longest text
+        let maxLength = 0;
+
+        // Select all <td> elements with the class "names"
+        const nameCells = document.querySelectorAll('td.names');
+
+        // Iterate over each <td> element
+        nameCells.forEach(cell => {
+            // Get the text content of the cell
+            const text = cell.textContent;
+            // Update maxLength if the current text length is greater
+            if (text.length > maxLength) {
+                maxLength = text.length;
+            }
+        });
+
+        // Create a new row for the search results table
+        const searchRow = document.createElement('tr');
+
+        // Get the headers of the productEntries table
+        const packsizeHeaders = document.getElementById('productEntries').querySelectorAll('th');
+
+        // Iterate over each header and create a new table header for each one
+        packsizeHeaders.forEach((header, index) => {
+            // Create a new table header for each column
+            const searchcolumnHeader = document.createElement('th');
+            // Update the text content of the search header to match the productEntries header
+            searchcolumnHeader.textContent = header.textContent;
+
+            // Create a new table cell (td) for each header
+            const headerCell = document.createElement('td');
+            // Append the search header to the table cell
+            headerCell.appendChild(searchcolumnHeader);
+
+            // Append the table cell to the row
+            searchRow.appendChild(headerCell);
+        });
+
+        // Append the search row to the search results table
+        // searchResults.appendChild(searchRow);
+
+        // Process each product and populate the search results table
+        data.forEach(product => {
+            // Create a table row (tr)
+            const row = document.createElement('tr');
+
+            // Create a table cell (td) for product name
+            const nameCell = document.createElement('td');
+            nameCell.textContent = product.name.padEnd(maxLength, '\xa0');
+            row.appendChild(nameCell);
 
             // Create a table cell (td) for input elements
             const inputCell = document.createElement('td');
 
             // Find input elements whose name attribute matches the pattern "product_name-*"
             const inputs = document.querySelectorAll(`input[name^="${product.name}-"]`);
+
             // Iterate over found input elements
             inputs.forEach(input => {
-        const clonedInput = input.cloneNode(true);
-        // Clone the input element and append it to the input cell
-        clonedInput.className = "copy";
-        inputCell.appendChild(clonedInput);
-        // Add event listener to the source input for input events
-        clonedInput.addEventListener('input', function() {
-        // Update the value of the destination input to match the source input
-        input.value = clonedInput.value;
-    });
-        // Add event listener to the source input for input events
-        input.addEventListener('input', function() {
-        // Update the value of the destination input to match the source input
-        clonedInput.value = input.value;
-    });
-    });
+                const clonedInput = input.cloneNode(true);
+                // Clone the input element and append it to the input cell
+                clonedInput.className = "copy";
+                inputCell.appendChild(clonedInput);
+                // Add event listener to the source input for input events
+                clonedInput.addEventListener('input', function() {
+                    // Update the value of the destination input to match the source input
+                    input.value = clonedInput.value;
+                });
+                // Add event listener to the source input for input events
+                input.addEventListener('input', function() {
+                    // Update the value of the destination input to match the source input
+                    clonedInput.value = input.value;
+                });
+            });
 
-    // Append input cell to the row
-    row.appendChild(inputCell);
+            // Append input cell to the row
+            row.appendChild(inputCell);
 
-    // Append the row to the search results table
-    searchResults.appendChild(row);
-});
+            // Append the row to the search results table
+            searchResults.appendChild(row);
         });
-    </script>
+    });
+</script>
+
 </body>
 </html>

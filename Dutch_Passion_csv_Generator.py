@@ -129,7 +129,6 @@ def order_form() -> Response:
 @app.route('/search', methods=['GET'])
 def search():
     query = request.args.get('query')
-    a = 'asdasd'
     if not query: return jsonify([])
     database_service = Database_Service(seeds_db)
     results = database_service.search(query=query)
