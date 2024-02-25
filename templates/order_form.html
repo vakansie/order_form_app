@@ -20,8 +20,12 @@
         position: sticky;
         top: 0px;
         background-color: white;}
-    .copy{
-        border-spacing: 10px 10px
+    .searchResults{
+        /* border: 10px solid black; */
+        border-spacing: 2px;
+    }
+    td, th {
+    white-space: nowrap; /* Allow text wrapping */
     }
 </style>
 <body>
@@ -57,7 +61,7 @@
             </tr>
             {% endfor %}
         </table>
-        <input type="Reset" value="Clear" accesskey="c">
+        <input id='clearButton' type="Reset" value="Clear" accesskey="c">
     </form>
     <button onclick="ShowPreview()" accesskey="s">Preview</button>
     <button onclick="submitOrder()" accesskey="q">Create File</button>
@@ -69,6 +73,17 @@
         window.addEventListener('load', function() {
             document.getElementById('order_form').reset();
         });
+        document.getElementById('clearButton').addEventListener('click', function(event) {
+        event.preventDefault(); // Prevent the default form clearing behavior
+        
+        // Loop through all input fields and clear their values
+        var inputs = document.getElementsByTagName('input');
+        for (var i = 0; i < inputs.length; i++) {
+          if (inputs[i].type === 'number') {
+            inputs[i].value = '';
+          }
+        }
+      });
     </script>
     <script>
         function capitalizeAndReplaceWithPadding(rawStr) {
@@ -176,6 +191,8 @@
                         // Calculate the amount needed for the next discount level
                         var nextDiscountLevel = null;
                         var amountNeededForNextDiscount = 0;
+                        var potentialDiscount = 0;
+                        var extraDiscount = 0;
 
                         if (totalWholesaleValue < 500) {
                             nextDiscountLevel = 10; // Next discount level is 10%
@@ -193,17 +210,6 @@
                             nextDiscountLevel = 30; // Next discount level is 30%
                             amountNeededForNextDiscount = 20000 - totalWholesaleValue;
                         }
-
-                        // Only add the next discount level row if there is a next level
-                        if (nextDiscountLevel !== null) {
-                            var nextDiscountRow = document.createElement('tr');
-                            var nextDiscountCell = document.createElement('td');
-                            nextDiscountCell.colSpan = "5"; // Adjust based on your table structure
-                            nextDiscountCell.textContent = 'Spend an additional €' + amountNeededForNextDiscount.toFixed(2) +
-                                                            ' for the next discount of ' + nextDiscountLevel + '%';
-                            nextDiscountRow.appendChild(nextDiscountCell);
-                            tbody.appendChild(nextDiscountRow);
-                        }
                         // Add Discount Row
                         var discountRow = document.createElement('tr');
                         var discountCell = document.createElement('td');
@@ -211,7 +217,7 @@
                         discountCell.textContent = 'Discount (' + discountPercentage + '%): €' + discountAmount.toFixed(2);
                         discountRow.appendChild(discountCell);
                         tbody.appendChild(discountRow);
-
+                        
                         // Add Final Total Row
                         var finalTotalRow = document.createElement('tr');
                         var finalTotalCell = document.createElement('td');
@@ -219,7 +225,20 @@
                         finalTotalCell.textContent = 'Final Total: €' + finalTotal.toFixed(2);
                         finalTotalRow.appendChild(finalTotalCell);
                         tbody.appendChild(finalTotalRow);
-
+                        
+                        potentialDiscount = nextDiscountLevel * (amountNeededForNextDiscount + totalWholesaleValue) / 100
+                        extraDiscount = potentialDiscount - discountAmount
+                        // Only add the next discount level row if there is a next level
+                        if (nextDiscountLevel !== null) {
+                            var nextDiscountRow = document.createElement('tr');
+                            var nextDiscountCell = document.createElement('td');
+                            nextDiscountCell.colSpan = "5"; // Adjust based on your table structure
+                            nextDiscountCell.textContent = 'Spend an additional €' + amountNeededForNextDiscount.toFixed(2) +
+                                                            ' for the next discount of ' + nextDiscountLevel + '% for an additional  €'
+                                                            + extraDiscount.toFixed(2) + ' discount ' + 'and a total of €' + potentialDiscount.toFixed(2) + ' discount.';
+                            nextDiscountRow.appendChild(nextDiscountCell);
+                            tbody.appendChild(nextDiscountRow);
+                        }
                         table.appendChild(tbody);
                         container.appendChild(table);
                         window.scrollTo(0, document.body.scrollHeight);
@@ -324,7 +343,7 @@
                         // Create a table cell (td) for product name
                         const nameCell = document.createElement('td');
                         
-                        nameCell.textContent = product.name.padEnd(maxLength);
+                        nameCell.textContent = product.name.padEnd(maxLength, '\xa0');
                         row.appendChild(nameCell);
 
             // // Create a table cell (td) for product type
@@ -337,18 +356,11 @@
 
             // Find input elements whose name attribute matches the pattern "product_name-*"
             const inputs = document.querySelectorAll(`input[name^="${product.name}-"]`);
-
             // Iterate over found input elements
             inputs.forEach(input => {
         const clonedInput = input.cloneNode(true);
         // Clone the input element and append it to the input cell
         clonedInput.className = "copy";
-        // Get the bounding rectangle of the original input relative to the viewport
-        // const rect = input.getBoundingClientRect();
-        // // Set the cloned input's position to match the original input's x position on the screen
-        // clonedInput.style.left = rect.left + 'px';
-        // clonedInput.style.padding = window.getComputedStyle(input).padding;
-        // clonedInput.style.width = window.getComputedStyle(input).width;
         inputCell.appendChild(clonedInput);
         // Add event listener to the source input for input events
         clonedInput.addEventListener('input', function() {

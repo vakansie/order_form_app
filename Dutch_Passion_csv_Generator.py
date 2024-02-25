@@ -57,14 +57,15 @@ class Database_Service:
         return seed_names, pack_sizes, available_products
 
     def search(self, query: str)-> list[Seed_Product]:
-        self.cursor.execute("SELECT * FROM dutch_passion_seeds WHERE name LIKE ?", ('%' + query + '%',))
-        results = self.cursor.fetchall()
-        products = [Seed_Product(*product_data) for product_data in results]
-        result = []
-        for product in products:
-            if product.name not in [product.name for product in result]:
-                result.append(product)
-        return result
+        try:
+            self.cursor.execute("SELECT * FROM dutch_passion_seeds WHERE name LIKE ?", ('%' + query + '%',))
+            results = self.cursor.fetchall()
+            products = [Seed_Product(*product_data) for product_data in results]
+            result = []
+            for product in products:
+                if product.name not in [product.name for product in result]:
+                    result.append(product)
+        finally: return result
 
     def search_attr(self, attr:str, query: str)-> list[Seed_Product]:
         self.cursor.execute("SELECT * FROM dutch_passion_seeds WHERE {} LIKE ?".format(attr), ('%' + query + '%',))
@@ -128,6 +129,7 @@ def order_form() -> Response:
 @app.route('/search', methods=['GET'])
 def search():
     query = request.args.get('query')
+    a = 'asdasd'
     if not query: return jsonify([])
     database_service = Database_Service(seeds_db)
     results = database_service.search(query=query)
