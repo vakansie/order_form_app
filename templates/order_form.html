@@ -91,6 +91,8 @@
             inputs[i].value = '';
           }
         }
+        var previewContainer = document.getElementById('order_preview');
+        previewContainer.innerHTML = '';
       });
     </script>
     <script>
@@ -110,8 +112,8 @@
         }
         function ShowPreview() {
             var inputs = document.getElementsByClassName('seed');
-            var container = document.getElementById('order_preview');
-            container.innerHTML = '';
+            var previewContainer = document.getElementById('order_preview');
+            previewContainer.innerHTML = '';
             var table = document.createElement('table');
             var tbody = document.createElement('tbody');
             var thead = document.createElement('thead');
@@ -262,7 +264,7 @@
                             tbody.appendChild(nextDiscountRow);
                         }
                         table.appendChild(tbody);
-                        container.appendChild(table);
+                        previewContainer.appendChild(table);
                         window.scrollTo(0, document.body.scrollHeight);
                     }).catch(error => {
                         console.error('Error:', error);
