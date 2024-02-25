@@ -40,7 +40,7 @@ class Database_Service:
         seeds = {f'{seed_data[1]}{seed_data[3]}': Seed_Product(*seed_data) for seed_data in rows}
         return seeds
 
-    def get_seed_by_id(self, seed_id:str):
+    def get_seed_by_id(self, seed_id:str)-> Seed_Product:
         if not seed_id.isdecimal(): return None
         self.cursor.execute('SELECT * FROM dutch_passion_seeds WHERE id = ?', (seed_id,))
         seed_data = self.cursor.fetchone()
@@ -48,7 +48,7 @@ class Database_Service:
         seed = Seed_Product(*seed_data)
         return seed
 
-    def fetch_seed_data(self):
+    def fetch_seed_data(self) -> tuple[list[str], list[int], dict[str: Seed_Product]]:
         self.cursor.execute("SELECT DISTINCT name FROM dutch_passion_seeds")
         seed_names = [row[0] for row in self.cursor.fetchall()]
         self.cursor.execute("SELECT DISTINCT pack_size FROM dutch_passion_seeds ORDER BY pack_size")
@@ -56,7 +56,27 @@ class Database_Service:
         available_products = self.get_seeds_from_db()
         return seed_names, pack_sizes, available_products
 
-    def add_column_to_table(self, table_name, column_name, value):
+    def search(self, query: str)-> list[Seed_Product]:
+        self.cursor.execute("SELECT * FROM dutch_passion_seeds WHERE name LIKE ?", ('%' + query + '%',))
+        results = self.cursor.fetchall()
+        products = [Seed_Product(*product_data) for product_data in results]
+        result = []
+        for product in products:
+            if product.name not in [product.name for product in result]:
+                result.append(product)
+        return result
+
+    def search_attr(self, attr:str, query: str)-> list[Seed_Product]:
+        self.cursor.execute("SELECT * FROM dutch_passion_seeds WHERE {} LIKE ?".format(attr), ('%' + query + '%',))
+        results = self.cursor.fetchall()
+        products = [Seed_Product(*product_data) for product_data in results]
+        result = []
+        for product in products:
+            if product.name not in [product.name for product in result]:
+                result.append(product)
+        return result
+
+    def add_column_to_table(self, table_name, column_name, value) ->dict:
         self.cursor.execute(f"PRAGMA table_info('{table_name}')")
         columns = self.cursor.fetchall()
         existing_columns = [col[1] for col in columns]
@@ -71,13 +91,13 @@ class Database_Service:
             return {'error': str(e)}
 
 @app.route('/', methods=['GET'])
-def render_order_form():
+def render_order_form() -> str:
     database_service = Database_Service(seeds_db)
     seed_names, pack_sizes, available_products = database_service.fetch_seed_data()
     return render_template('order_form.html', seed_names=seed_names, pack_sizes=pack_sizes, available_products=available_products)
 
 @app.route('/download', methods=['GET'])
-def download():
+def download()  -> Response:
     return send_file(
         path_or_file=order_file,
         mimetype='text/csv',
@@ -93,7 +113,7 @@ def get_seed_by_id_route()-> Response:
     return jsonify(seed)
 
 @app.route('/create_file', methods=['GET'])
-def order_form():
+def order_form() -> Response:
     database_service = Database_Service(seeds_db)
     ordered_products = json.loads(request.args.get('order_data'))
     order = Order()
@@ -104,6 +124,23 @@ def order_form():
         order.item_list.append((product, quantity_ordered))
     order.write_to_file()
     return jsonify({str(product): qty for (product, qty) in order.item_list})
+
+@app.route('/search', methods=['GET'])
+def search():
+    query = request.args.get('query')
+    if not query: return jsonify([])
+    database_service = Database_Service(seeds_db)
+    results = database_service.search(query=query)
+    return jsonify(results)
+
+@app.route('/search_attr', methods=['GET'])
+def search_attr():
+    query = request.args.get('query')
+    if not query: return {}
+    attr = 'id' if len(query) in (4, 5) and query.isdecimal() else 'name'
+    database_service = Database_Service(seeds_db)
+    results = database_service.search_attr(attr=attr, query=query)
+    return jsonify(results)
 
 def main():
     app.run(debug=True)

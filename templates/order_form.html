@@ -5,24 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dutch Passion Order Form</title>
 </head>
+<style>
+    .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        border: 0;}
+    .totals_row {outline: solid thin}
+    .sticky_top {
+        position: sticky;
+        top: 0px;
+        background-color: white;}
+    .copy{
+        border-spacing: 10px 10px
+    }
+</style>
 <body>
     <h1>Dutch Passion Order Form</h1>
+    <div class="sticky_top">
     <input type="text" id="searchBar" placeholder="Search by name or ID...">
+    <table id="searchResults"></table>
+    </div>
     <form id="order_form" method="post">
-        <style>
-            .visually-hidden {
-                position: absolute;
-                width: 1px;
-                height: 1px;
-                margin: -1px;
-                padding: 0;
-                overflow: hidden;
-                clip: rect(0, 0, 0, 0);
-                border: 0;
-            }
-            .totals_row {outline: solid thin}
-        </style>
-        
         <table>
             <tr>
                 <th></th>
@@ -32,7 +40,7 @@
             </tr>
             {% for name in seed_names %}
             <tr>
-                <td>{{ name }}</td>
+                <td class="names">{{ name }}</td>
                 {% for size in pack_sizes %}
                     {% set key = [name, size]|join('') %}
                     {% set product = available_products.get(key, False) %}
@@ -49,12 +57,10 @@
             </tr>
             {% endfor %}
         </table>
-        
         <input type="Reset" value="Clear" accesskey="c">
     </form>
     <button onclick="ShowPreview()" accesskey="s">Preview</button>
     <button onclick="submitOrder()" accesskey="q">Create File</button>
-    <button onclick="getSeedByID('3801')" accesskey="t">test</button>
     <form>
     <input type="Submit" formaction="{{url_for('download')}}" accesskey="d" value="Download File">
     </form>
@@ -285,31 +291,83 @@
         }
     </script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const searchBar = document.getElementById('searchBar');
-            searchBar.addEventListener('keyup', function(e) {
-                const term = e.target.value.toLowerCase();
-                const rows = document.querySelectorAll('#order_form tr');
-                rows.forEach(row => {
-                    const name = row.querySelector('td:first-child').textContent.toLowerCase();
-                    const isVisible = name.includes(term) || row.id.includes(term);
-                    row.style.display = isVisible ? '' : 'none';
-                });
-            });
+        const searchBar                     = document.getElementById('searchBar');
+        const searchResults                 = document.getElementById('searchResults');
+        searchBar.addEventListener('input', async () => {
+            const query                     = searchBar.value.trim();
+            const response                  = await fetch(`/search_attr?query=${query}`);
+            const data                      = await response.json();
 
-            // Synchronize input fields
-            const inputs = document.querySelectorAll('.seed');
-            inputs.forEach(input => {
-                input.addEventListener('input', function() {
-                    // Duplicate and synchronize input values based on some unique attribute, e.g., 'name'
-                    const copies = document.querySelectorAll(`[name="${this.name}"]`);
-                    copies.forEach(copy => {
-                        if (copy !== this) {
-                            copy.value = this.value;
+            // Clear previous results
+            searchResults.innerHTML = '';
+            // Initialize a variable to store the length of the longest text
+            let maxLength = 0;
+            // Select all <td> elements with the class "names"
+                const nameCells = document.querySelectorAll('td.names');
+                // Iterate over each <td> element
+                    nameCells.forEach(cell => {
+                        // Get the text content of the cell
+                        const text = cell.textContent
+                        // Update maxLength if the current text length is greater
+                        if (text.length > maxLength) {
+                            maxLength = text.length;
                         }
                     });
-                });
-            });
+                    const row = document.createElement('tr')
+                    const header = document.createElement('th')
+                    row.appendChild(header)
+                    searchResults.appendChild(row);
+                    // Display new results
+                    data.forEach(product => {
+                        // Create a table row (tr)
+                        const row = document.createElement('tr');
+                        // Create a table cell (td) for product name
+                        const nameCell = document.createElement('td');
+                        
+                        nameCell.textContent = product.name.padEnd(maxLength);
+                        row.appendChild(nameCell);
+
+            // // Create a table cell (td) for product type
+            // const typeCell = document.createElement('td');
+            // typeCell.textContent = product.type;
+            // row.appendChild(typeCell);
+
+            // Create a table cell (td) for input elements
+            const inputCell = document.createElement('td');
+
+            // Find input elements whose name attribute matches the pattern "product_name-*"
+            const inputs = document.querySelectorAll(`input[name^="${product.name}-"]`);
+
+            // Iterate over found input elements
+            inputs.forEach(input => {
+        const clonedInput = input.cloneNode(true);
+        // Clone the input element and append it to the input cell
+        clonedInput.className = "copy";
+        // Get the bounding rectangle of the original input relative to the viewport
+        // const rect = input.getBoundingClientRect();
+        // // Set the cloned input's position to match the original input's x position on the screen
+        // clonedInput.style.left = rect.left + 'px';
+        // clonedInput.style.padding = window.getComputedStyle(input).padding;
+        // clonedInput.style.width = window.getComputedStyle(input).width;
+        inputCell.appendChild(clonedInput);
+        // Add event listener to the source input for input events
+        clonedInput.addEventListener('input', function() {
+        // Update the value of the destination input to match the source input
+        input.value = clonedInput.value;
+    });
+        // Add event listener to the source input for input events
+        input.addEventListener('input', function() {
+        // Update the value of the destination input to match the source input
+        clonedInput.value = input.value;
+    });
+    });
+
+    // Append input cell to the row
+    row.appendChild(inputCell);
+
+    // Append the row to the search results table
+    searchResults.appendChild(row);
+});
         });
     </script>
 </body>
