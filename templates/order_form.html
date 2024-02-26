@@ -219,7 +219,7 @@
                         var quantityTotalCell = document.createElement('td');
                         quantityTotalCell.textContent = totalQuantity;
                         quantityTotalCell.style.fontWeight = 'bold';
-                        quantityTotalCell.style.textAlign = 'right';
+                        // quantityTotalCell.style.textAlign = 'right';
                         totalsRow.appendChild(quantityTotalCell);
                         tbody.appendChild(totalsRow);
 
@@ -429,6 +429,7 @@
                 const clonedInput = input.cloneNode(true);
                 // Clone the input element and append it to the input cell
                 clonedInput.className = "copy";
+                clonedInput.id = input.id;
                 inputCell.appendChild(clonedInput);
                 // Add event listener to the source input for input events
                 clonedInput.addEventListener('input', function() {
