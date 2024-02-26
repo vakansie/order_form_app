@@ -63,7 +63,7 @@
                                 <input class="seed" id="{{ product.id }}" type="number" min="0" name="{{ name }}-{{ size }}" label='not available' title="{{ name }} - {{ size }}-packs - ({{ product.type }})">
                             {% else %}
                                 <label for="{{ key }}" class="visually-hidden">Quantity of {{ name }}-{{ size }}-packs to order</label>
-                                <input type="text" id="{{ key }}" name="{{ name }}-{{ size }}" readonly tabindex=-1 style="background-color: #c2c2c2">
+                                <input class="unavailable-seed" type="text" id="{{ key }}" name="{{ name }}-{{ size }}" readonly tabindex=-1 style="background-color: #c2c2c2">
                             {% endif %}
                         </td>
                 {% endfor %}
@@ -117,6 +117,8 @@
         }
         function ShowPreview() {
             var inputs = document.getElementsByClassName('seed');
+            // Filter out the inputs that don't have the "copy" class
+            var originalInputs = Array.from(inputs).filter(input => !input.classList.contains('copy'));
             var previewContainer = document.getElementById('order_preview');
             previewContainer.innerHTML = '';
             var table = document.createElement('table');
@@ -128,8 +130,8 @@
             var totalQuantity = 0;
             var seedPromises = [];
 
-            if (inputs.length > 0) {
-                getSeedByID(inputs[0].getAttribute('id')).then(firstSeed => {
+            if (originalInputs.length > 0) {
+                getSeedByID(originalInputs[0].getAttribute('id')).then(firstSeed => {
                     Object.keys(firstSeed).forEach(key => {
                         var headerCell = document.createElement('th');
                         headerCell.textContent = capitalizeAndReplaceWithPadding(key);
@@ -141,7 +143,7 @@
                     thead.appendChild(headerRow);
                     table.appendChild(thead);
 
-                    Array.from(inputs).forEach(input => {
+                    Array.from(originalInputs).forEach(input => {
                         var value = parseInt(input.value);
                         if (!isNaN(value) && value > 0) {
                             var seed_id = input.getAttribute('id');
@@ -174,22 +176,12 @@
                                     row.appendChild(cell);
                                 });
                                 var quantityCell = document.createElement('td');
-                                const originalInput = document.getElementById(seed.id)
-                                const clonedInput = originalInput.cloneNode(true);
-
-                                // Clone the input element and append it to the input cell
-                                clonedInput.className = "copy";
-                                quantityCell.appendChild(clonedInput);
-                                // Add event listener to the source input for input events
-                                clonedInput.addEventListener('input', function() {
-                                    // Update the value of the destination input to match the source input
-                                    originalInput.value = clonedInput.value;
-                                });
-                                originalInput.addEventListener('input', function() {
-                                    // Update the value of the destination input to match the source input
-                                    clonedInput.value = originalInput.value;
-                                });
-                                
+                                const similarInputs = document.getElementsByName(seed.name + "-" + seed.pack_size)
+                                console.log(similarInputs)
+                                const originalInput = Array.from(similarInputs).find(input => !input.classList.contains('copy'));
+                                console.log(originalInput)
+                                const clonedInput = cloneInputAndSyncValue(originalInput)
+                                quantityCell.appendChild(clonedInput)
                                 // quantityCell.textContent = value;
                                 // quantityCell.style.textAlign = 'right';
                                 row.appendChild(quantityCell);
@@ -426,21 +418,9 @@
 
             // Iterate over found input elements
             inputs.forEach(input => {
-                const clonedInput = input.cloneNode(true);
-                // Clone the input element and append it to the input cell
-                clonedInput.className = "copy";
-                clonedInput.id = input.id;
+                const clonedInput = cloneInputAndSyncValue(input)
                 inputCell.appendChild(clonedInput);
                 // Add event listener to the source input for input events
-                clonedInput.addEventListener('input', function() {
-                    // Update the value of the destination input to match the source input
-                    input.value = clonedInput.value;
-                });
-                // Add event listener to the source input for input events
-                input.addEventListener('input', function() {
-                    // Update the value of the destination input to match the source input
-                    clonedInput.value = input.value;
-                });
             });
 
             // Append input cell to the row
@@ -485,6 +465,48 @@
             }
             // Return the original string if there are less than two occurrences of " - "
             return inputString;
+        }
+
+        function cloneInputAndSyncValue(originalInput) {
+            if (originalInput.classList.contains('clone')) {return}
+            // Clone the original input
+            const clonedInput = originalInput.cloneNode(true);
+
+            // Ensure the cloned input has the "copy" class
+            clonedInput.classList.add("copy");
+
+            // Add event listener to the cloned input for input events
+            clonedInput.addEventListener('input', function() {
+                // Update the value of the original input to match the cloned input
+                originalInput.value = clonedInput.value;
+            });
+            // Add event listener to the cloned input for input events
+            originalInput.addEventListener('input', function() {
+                // Update the value of the original input to match the cloned input
+                clonedInput.value = originalInput.value;
+            });
+
+            // Find other clones of the original input (with class "copy")
+            const otherClones = document.querySelectorAll('input.clone[name="' + originalInput.name + '"]');
+            
+            // Iterate over other clones to synchronize their values
+            otherClones.forEach(clone => {
+                // Ensure we don't synchronize with the cloned input itself
+                if (clone !== clonedInput) {
+                    // Add event listener to the other clone for input events
+                    clone.addEventListener('input', function() {
+                        // Update the value of the cloned input to match the other clone
+                        clonedInput.value = clone.value;
+                    });
+                    clone.addEventListener('input', function() {
+                        // Update the value of the cloned input to match the other clone
+                        clone.value = clonedInput.value;
+                    });
+                }
+            });
+
+            // Return the cloned input
+            return clonedInput;
         }
 </script>
 
