@@ -75,7 +75,7 @@ class Database_Service:
         for product in products:
             if product.name not in [product.name for product in result]:
                 result.append(product)
-        return result
+        return result[:13]
 
     def add_column_to_table(self, table_name, column_name, value) ->dict:
         self.cursor.execute(f"PRAGMA table_info('{table_name}')")

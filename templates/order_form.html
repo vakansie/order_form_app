@@ -17,9 +17,10 @@
         border: 0;}
     .totals_row {outline: solid thin}
     .sticky_top {
-        position: sticky;
-        top: 0px;
-        background-color: white;}
+    position: sticky;
+    top: 0;
+    background-color: white;
+    }
     .searchResults{
         /* border: 10px solid black; */
         border-spacing: 2px;
@@ -40,7 +41,7 @@
     <div class="sticky_top">
     <input type="text" id="searchBar" placeholder="Search by name or ID...">
     <table id="searchResults"></table>
-    </br>
+    <br>
     </div>
     <form id="order_form" method="post">
         <table id="productEntries">
@@ -93,6 +94,10 @@
         }
         var previewContainer = document.getElementById('order_preview');
         previewContainer.innerHTML = '';
+        var searchResults = document.getElementById('searchResults');
+        searchResults.innerHTML = '';
+        var searchInput = document.getElementById('searchBar');
+        searchInput.value = '';
       });
     </script>
     <script>
@@ -169,8 +174,25 @@
                                     row.appendChild(cell);
                                 });
                                 var quantityCell = document.createElement('td');
-                                quantityCell.textContent = value;
-                                quantityCell.style.textAlign = 'right';
+                                const originalInput = document.getElementById(seed.id)
+                                const clonedInput = originalInput.cloneNode(true);
+
+                                // Clone the input element and append it to the input cell
+                                clonedInput.className = "copy";
+                                quantityCell.appendChild(clonedInput);
+                                // Add event listener to the source input for input events
+                                clonedInput.addEventListener('input', function() {
+                                    // Update the value of the destination input to match the source input
+                                    originalInput.value = clonedInput.value;
+                                    ShowPreview()
+                                });
+                                originalInput.addEventListener('input', function() {
+                                    // Update the value of the destination input to match the source input
+                                    clonedInput.value = originalInput.value;
+                                });
+                                
+                                // quantityCell.textContent = value;
+                                // quantityCell.style.textAlign = 'right';
                                 row.appendChild(quantityCell);
                                 tbody.appendChild(row);
                             });
@@ -394,6 +416,7 @@
             // Create a table cell (td) for product name
             const nameCell = document.createElement('td');
             nameCell.textContent = product.name.padEnd(maxLength, '\xa0');
+            nameCell.title = product.name + " - " + product.type
             row.appendChild(nameCell);
 
             // Create a table cell (td) for input elements
@@ -427,6 +450,42 @@
             searchResults.appendChild(row);
         });
     });
+
+    // Select all <td> elements with the class "names"
+    const searchNameCells = document.querySelectorAll('td.names');
+
+    // Iterate over each <td> element
+    searchNameCells.forEach(cell => {
+        // Find the next sibling element
+        let sibling = cell.nextElementSibling;
+        let children = sibling.children
+        inputCell = children[1]
+        // If the next sibling exists and is an input element
+        while (sibling) {
+                sibling = sibling.nextElementSibling; // Move to the next sibling
+            }
+            
+            // If a valid input sibling with a title attribute is found
+            if (inputCell.title) {
+                // Set the title attribute of the current cell with the value of the sibling's title attribute
+                cell.title = removeMiddlePart(inputCell.title);
+            }
+        });
+        function removeMiddlePart(inputString) {
+            // Find the index of the first occurrence of " - "
+            const firstDashIndex = inputString.indexOf(" - ");
+            if (firstDashIndex !== -1) {
+                // Find the index of the second occurrence of " - " after the first one
+                const secondDashIndex = inputString.indexOf(" - ", firstDashIndex + 3);
+                if (secondDashIndex !== -1) {
+                    // Extract the substring from the start of the string to just before the first " - "
+                    // Concatenate it with the substring from after the second " - "
+                    return inputString.substring(0, firstDashIndex) + '-' + inputString.substring(secondDashIndex);
+                }
+            }
+            // Return the original string if there are less than two occurrences of " - "
+            return inputString;
+        }
 </script>
 
 </body>
