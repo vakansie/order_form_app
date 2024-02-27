@@ -68,10 +68,10 @@ class Database_Service:
     def search_attr(self, attr:str, query: str)-> list[Seed_Product]:
         products = []
         try:
-            self.cursor.execute("SELECT * FROM dutch_passion_seeds WHERE {} LIKE ? GROUP BY {}".format(attr, attr), ('%' + query + '%',))
+            self.cursor.execute("SELECT * FROM dutch_passion_seeds WHERE {} LIKE ? GROUP BY {} LIMIT 12".format(attr, attr), ('%' + query + '%',))
             results = self.cursor.fetchall()
             products = [Seed_Product(*product_data) for product_data in results]
-        finally: return products[:13]
+        finally: return products
 
     def add_column_to_table(self, table_name, column_name, value) ->dict:
         self.cursor.execute(f"PRAGMA table_info('{table_name}')")
