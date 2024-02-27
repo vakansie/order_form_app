@@ -177,9 +177,7 @@
                                 });
                                 var quantityCell = document.createElement('td');
                                 const similarInputs = document.getElementsByName(seed.name + "-" + seed.pack_size)
-                                console.log(similarInputs)
                                 const originalInput = Array.from(similarInputs).find(input => !input.classList.contains('copy'));
-                                console.log(originalInput)
                                 const clonedInput = cloneInputAndSyncValue(originalInput)
                                 quantityCell.appendChild(clonedInput)
                                 // quantityCell.textContent = value;
@@ -319,9 +317,10 @@
         function submitOrder() {
             var orderData = {};
             var inputs = document.getElementsByClassName('seed');
-            for (var i = 0; i < inputs.length; i++) {
-                var productId = inputs[i].id;
-                var quantity = parseInt(inputs[i].value);
+            var originalInputs = Array.from(inputs).filter(input => !input.classList.contains('copy'));
+            for (var i = 0; i < originalInputs.length; i++) {
+                var productId = originalInputs[i].id;
+                var quantity = parseInt(originalInputs[i].value);
                 if (quantity >= 1) {
                     orderData[productId] = quantity;
                 }
@@ -396,9 +395,6 @@
             searchRow.appendChild(headerCell);
         });
 
-        // Append the search row to the search results table
-        // searchResults.appendChild(searchRow);
-
         // Process each product and populate the search results table
         data.forEach(product => {
             // Create a table row (tr)
@@ -415,9 +411,9 @@
 
             // Find input elements whose name attribute matches the pattern "product_name-*"
             const inputs = document.querySelectorAll(`input[name^="${product.name}-"]`);
-
+            const originalInputs = Array.from(inputs).filter(input => !input.classList.contains('copy'));
             // Iterate over found input elements
-            inputs.forEach(input => {
+            originalInputs.forEach(input => {
                 const clonedInput = cloneInputAndSyncValue(input)
                 inputCell.appendChild(clonedInput);
                 // Add event listener to the source input for input events
@@ -444,7 +440,6 @@
         while (sibling) {
                 sibling = sibling.nextElementSibling; // Move to the next sibling
             }
-            
             // If a valid input sibling with a title attribute is found
             if (inputCell.title) {
                 // Set the title attribute of the current cell with the value of the sibling's title attribute
@@ -468,46 +463,58 @@
         }
 
         function cloneInputAndSyncValue(originalInput) {
-            if (originalInput.classList.contains('clone')) {return}
+            if (originalInput.classList.contains('clone')) {
+                console.log('tried to clone a clone a clone a ...')
+                return}
             // Clone the original input
             const clonedInput = originalInput.cloneNode(true);
 
-            // Ensure the cloned input has the "copy" class
+            // Ensure the cloned input has the "copy" class and a unique id
             clonedInput.classList.add("copy");
-
-            // Add event listener to the cloned input for input events
-            clonedInput.addEventListener('input', function() {
-                // Update the value of the original input to match the cloned input
-                originalInput.value = clonedInput.value;
-            });
-            // Add event listener to the cloned input for input events
-            originalInput.addEventListener('input', function() {
-                // Update the value of the original input to match the cloned input
-                clonedInput.value = originalInput.value;
-            });
-
-            // Find other clones of the original input (with class "copy")
-            const otherClones = document.querySelectorAll('input.clone[name="' + originalInput.name + '"]');
-            
-            // Iterate over other clones to synchronize their values
-            otherClones.forEach(clone => {
-                // Ensure we don't synchronize with the cloned input itself
-                if (clone !== clonedInput) {
-                    // Add event listener to the other clone for input events
-                    clone.addEventListener('input', function() {
-                        // Update the value of the cloned input to match the other clone
-                        clonedInput.value = clone.value;
-                    });
-                    clone.addEventListener('input', function() {
-                        // Update the value of the cloned input to match the other clone
-                        clone.value = clonedInput.value;
-                    });
-                }
-            });
-
+            const uniqueId = generateUniqueId()
+            clonedInput.id = clonedInput.id.concat(uniqueId);
+            synchronizeSeedInputs(clonedInput)
             // Return the cloned input
             return clonedInput;
         }
+// Function to synchronize seed inputs
+function synchronizeSeedInputs(input) {
+    // Add event listener for input event
+    input.addEventListener('input', function(event) {
+        // Get the value of the changed input
+        const changedValue = event.target.value;
+
+        // Get the name of the changed input
+        const inputName = event.target.name;
+
+        // Select all other seed inputs with the same name
+        const otherSeedInputs = document.querySelectorAll(`input.seed[name="${inputName}"]`);
+
+        // Iterate over other seed inputs to update their values
+        otherSeedInputs.forEach(otherInput => {
+            // Skip the input that triggered the event
+            if (otherInput !== input) {
+                // Update the value of other inputs
+                otherInput.value = changedValue;
+            }
+        });
+        
+    });
+}
+
+// Select all seed inputs
+const seedInputs = document.querySelectorAll('input.seed');
+
+// Iterate over each seed input and synchronize them
+seedInputs.forEach(input => {
+    synchronizeSeedInputs(input);
+});
+
+    function generateUniqueId() {
+        const timestamp = Date.now().toString(36); // Convert current timestamp to base-36 string
+        const randomString = Math.random().toString(36).substr(2, 5); // Generate random string
+        return '_' + timestamp + '-' + randomString; // Concatenate timestamp and random string
+    }
 </script>
 
 </body>

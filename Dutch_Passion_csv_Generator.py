@@ -57,25 +57,21 @@ class Database_Service:
         return seed_names, pack_sizes, available_products
 
     def search(self, query: str)-> list[Seed_Product]:
+        products = []
         try:
-            self.cursor.execute("SELECT * FROM dutch_passion_seeds WHERE name LIKE ?", ('%' + query + '%',))
+            self.cursor.execute(
+                "SELECT * FROM dutch_passion_seeds WHERE name LIKE ? GROUP BY name", ('%' + query + '%',))
             results = self.cursor.fetchall()
             products = [Seed_Product(*product_data) for product_data in results]
-            result = []
-            for product in products:
-                if product.name not in [product.name for product in result]:
-                    result.append(product)
-        finally: return result
+        finally: return products
 
     def search_attr(self, attr:str, query: str)-> list[Seed_Product]:
-        self.cursor.execute("SELECT * FROM dutch_passion_seeds WHERE {} LIKE ?".format(attr), ('%' + query + '%',))
-        results = self.cursor.fetchall()
-        products = [Seed_Product(*product_data) for product_data in results]
-        result = []
-        for product in products:
-            if product.name not in [product.name for product in result]:
-                result.append(product)
-        return result[:13]
+        products = []
+        try:
+            self.cursor.execute("SELECT * FROM dutch_passion_seeds WHERE {} LIKE ? GROUP BY {}".format(attr, attr), ('%' + query + '%',))
+            results = self.cursor.fetchall()
+            products = [Seed_Product(*product_data) for product_data in results]
+        finally: return products[:13]
 
     def add_column_to_table(self, table_name, column_name, value) ->dict:
         self.cursor.execute(f"PRAGMA table_info('{table_name}')")
